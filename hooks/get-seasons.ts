@@ -21,6 +21,10 @@ export function useTvSeason({
       return res.data;
     },
     retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchIntervalInBackground: false,
   });
   return seasonQuery;
 }

@@ -12,7 +12,7 @@ const WORKER_URL = "https://main.jinluxuz.workers.dev";
 const WORKER_SECRET = "xk92mZpQ7vLw3nRt";
 const FEBBOX_PLAYER_WORKER = "https://febbox3.jinluxusz.workers.dev";
 const MAX_FILE_SIZE_GB = 60;
-const QUALITY_ORDER = ["1080p", "4k", "720p", "480p", "360p"];
+const QUALITY_ORDER = ["1080p", "auto", "4k", "720p", "480p", "360p"];
 
 async function dbGet(
   tmdbId: string,
@@ -164,6 +164,7 @@ export async function GET(req: NextRequest) {
 
     if (cached) {
       const { share_token: shareToken, files } = cached;
+
       const bestFile = selectBestFile(files);
       if (!bestFile)
         return NextResponse.json(
@@ -174,7 +175,7 @@ export async function GET(req: NextRequest) {
       const playerData = await fetch(
         `${FEBBOX_PLAYER_WORKER}/?fid=${bestFile.data_id}&share_key=${shareToken}`,
       ).then((r) => r.json());
-
+      console.log("xxxxxxx", playerData);
       return buildResponse(playerData);
     }
 

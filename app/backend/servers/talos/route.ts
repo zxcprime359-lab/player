@@ -2,6 +2,55 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { NextRequest, NextResponse } from "next/server";
 import { validateBackendToken } from "@/lib/validate-token";
 import { isValidReferer } from "@/lib/allowed-referers";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL_TALOS!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY_TALOS!,
+);
+
+async function dbGet(
+  tmdbId: string,
+  mediaType: string,
+  season: string | null,
+  episode: string | null,
+) {
+  try {
+    const { data, error } = await supabase.rpc("get_streamtape", {
+      p_tmdb_id: Number(tmdbId),
+      p_media_type: mediaType,
+      p_season: season ? Number(season) : null,
+      p_episode: episode ? Number(episode) : null,
+    });
+    if (error || !data) return null;
+    return data as string;
+  } catch {
+    return null;
+  }
+}
+
+async function dbSave(
+  tmdbId: string,
+  mediaType: string,
+  season: string | null,
+  episode: string | null,
+  year: string,
+  iframeSrc: string,
+) {
+  try {
+    const { error } = await supabase.rpc("save_streamtape", {
+      p_tmdb_id: Number(tmdbId),
+      p_media_type: mediaType,
+      p_season: season ? Number(season) : null,
+      p_episode: episode ? Number(episode) : null,
+      p_year: Number(year),
+      p_iframe_src: iframeSrc,
+    });
+    if (error) console.warn("[dbSave] error:", error);
+  } catch (err: any) {
+    console.warn("[dbSave] exception:", err.message);
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +71,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ⏱ expire after 8 seconds
     if (Date.now() - Number(ts) > 8000) {
       return NextResponse.json(
         { success: false, error: "Invalid token" },
@@ -37,7 +85,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // block direct /api access
     const referer = req.headers.get("referer") || "";
     if (!isValidReferer(referer)) {
       return NextResponse.json(
@@ -46,52 +93,67 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ─── Fetch source link ────────────────────────────────────────────────────
-    const sourceUrl = new URL("https://test2.jerometecson-main.workers.dev/");
-    sourceUrl.searchParams.set("id", tmdbId);
-    sourceUrl.searchParams.set("type", mediaType);
-    if (season && mediaType === "tv")
-      sourceUrl.searchParams.set("season", season);
-    if (episode && mediaType === "tv")
-      sourceUrl.searchParams.set("episode", episode);
+    // ─── Check cache ──────────────────────────────────────────────────────────
+    const cached = await dbGet(tmdbId, mediaType, season, episode);
 
-    const sourceRes = await fetchWithTimeout(
-      sourceUrl.toString(),
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        },
-      },
-      10000,
-    );
+    let iframeSrc: string;
 
-    if (!sourceRes.ok) {
-      return NextResponse.json(
+    if (cached) {
+      iframeSrc = cached;
+    } else {
+      const sourceUrl = new URL("https://test2.jerometecson-main.workers.dev/");
+      sourceUrl.searchParams.set("id", tmdbId);
+      sourceUrl.searchParams.set("type", mediaType);
+      if (season && mediaType === "tv")
+        sourceUrl.searchParams.set("season", season);
+      if (episode && mediaType === "tv")
+        sourceUrl.searchParams.set("episode", episode);
+
+      const sourceRes = await fetchWithTimeout(
+        sourceUrl.toString(),
         {
-          success: false,
-          error: "Source upstream failed",
-          status: sourceRes.status,
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+          },
         },
-        { status: sourceRes.status },
+        10000,
+      );
+
+      if (!sourceRes.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Source upstream failed",
+            status: sourceRes.status,
+          },
+          { status: sourceRes.status },
+        );
+      }
+
+      const sourceData = await sourceRes.json();
+
+      if (!sourceData.iframeSrc) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No stream link from source",
+            detail: sourceData,
+          },
+          { status: 404 },
+        );
+      }
+
+      iframeSrc = sourceData.iframeSrc;
+
+      dbSave(tmdbId, mediaType, season, episode, year, iframeSrc).catch(
+        (e: any) => console.warn("dbSave failed:", e.message),
       );
     }
 
-    const sourceData = await sourceRes.json();
-
-    if (!sourceData.iframeSrc) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No stream link from source",
-          detail: sourceData,
-        },
-        { status: 404 },
-      );
-    }
-
+    // ─── Step 4 proxy ─────────────────────────────────────────────────────────
     const step4Res = await fetchWithTimeout(
-      `https://zxcstream.xyz/backend/proxy/streamtape/?url=${encodeURIComponent(sourceData.iframeSrc)}`,
+      `https://zxcstream.xyz/backend/proxy/streamtape/?url=${encodeURIComponent(iframeSrc)}`,
       {
         headers: {
           "User-Agent":
@@ -123,12 +185,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      links: [
-        {
-          type: "mp4",
-          link: step4Data.videoUrl,
-        },
-      ],
+      cache: !!cached,
+      links: [{ type: "mp4", link: step4Data.videoUrl }],
       subtitles: [],
     });
   } catch (err) {

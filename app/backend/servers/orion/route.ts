@@ -16,21 +16,14 @@ async function dbGet(
   episode: string | null,
 ) {
   try {
-    let query = supabase
-      .from("holly_cache")
-      .select("qualities")
-      .eq("tmdb_id", Number(tmdbId))
-      .eq("media_type", mediaType);
-
-    if (season) query = query.eq("season", Number(season));
-    else query = query.is("season", null);
-
-    if (episode) query = query.eq("episode", Number(episode));
-    else query = query.is("episode", null);
-
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await supabase.rpc("get_holly", {
+      p_tmdb_id: Number(tmdbId),
+      p_media_type: mediaType,
+      p_season: season ? Number(season) : null,
+      p_episode: episode ? Number(episode) : null,
+    });
     if (error || !data) return null;
-    return data.qualities as Array<{ quality: string; embed_url: string }>;
+    return data as Array<{ quality: string; embed_url: string }>;
   } catch {
     return null;
   }
@@ -44,16 +37,13 @@ async function dbSave(
   qualities: Array<{ quality: string; embed_url: string }>,
 ) {
   try {
-    const { error } = await supabase.from("holly_cache").upsert(
-      {
-        tmdb_id: Number(tmdbId),
-        media_type: mediaType,
-        season: season ? Number(season) : null,
-        episode: episode ? Number(episode) : null,
-        qualities,
-      },
-      { onConflict: "tmdb_id,media_type,season,episode" },
-    );
+    const { error } = await supabase.rpc("save_holly", {
+      p_tmdb_id: Number(tmdbId),
+      p_media_type: mediaType,
+      p_season: season ? Number(season) : null,
+      p_episode: episode ? Number(episode) : null,
+      p_qualities: qualities,
+    });
     if (error) console.warn("[holly dbSave] error:", error);
   } catch (err: any) {
     console.warn("[holly dbSave] exception:", err.message);

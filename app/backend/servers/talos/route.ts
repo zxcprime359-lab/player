@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     }
 
     const step4Res = await fetchWithTimeout(
-      `/backend/proxy/streamtape/?url=${encodeURIComponent(sourceData.iframeSrc)}`,
+      `https://zxcstream.xyz/backend/proxy/streamtape/?url=${encodeURIComponent(sourceData.iframeSrc)}`,
       {
         headers: {
           "User-Agent":

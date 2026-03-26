@@ -79,24 +79,54 @@ export async function GET(req: NextRequest) {
 
     const sourceData = await sourceRes.json();
 
-    if (!sourceData.success || !sourceData.iframeSrc) {
+    if (!sourceData.iframeSrc) {
       return NextResponse.json(
         {
           success: false,
-          error: sourceData.error ?? "No stream link from source",
+          error: "No stream link from source",
           detail: sourceData,
         },
         { status: 404 },
       );
     }
 
-    // ─── Isolated: return iframeSrc without step 4 ────────────────────────
+    const step4Res = await fetchWithTimeout(
+      `/backend/proxy/streamtape/?url=${encodeURIComponent(sourceData.iframeSrc)}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        },
+      },
+      10000,
+    );
+
+    if (!step4Res.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Step 4 upstream failed",
+          status: step4Res.status,
+        },
+        { status: step4Res.status },
+      );
+    }
+
+    const step4Data = await step4Res.json();
+
+    if (!step4Data.videoUrl) {
+      return NextResponse.json(
+        { success: false, error: "No videoUrl from Step 4", detail: step4Data },
+        { status: 404 },
+      );
+    }
+
     return NextResponse.json({
       success: true,
       links: [
         {
-          type: "iframe",
-          link: sourceData.iframeSrc,
+          type: "mp4",
+          link: step4Data.videoUrl,
         },
       ],
       subtitles: [],

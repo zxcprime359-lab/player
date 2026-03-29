@@ -60,7 +60,8 @@ export default function useSource(
     ],
     enabled: Boolean(tmdbId && imdbId && server === server), // ← blocks fetch while scrolling
     retry: false,
-    staleTime: Infinity,
+    staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchIntervalInBackground: false,

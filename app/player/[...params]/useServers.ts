@@ -36,10 +36,17 @@ export function usePlayerServers({
 
   function handleServerFail() {
     setServers((prev) => {
-      const next = prev.findIndex(
-        (s, i) => i !== serverIndex && s.status === "queue",
-      );
-      if (next !== -1) setServerIndex(next);
+      const find = (status: string) =>
+        prev.findIndex((s, i) => i !== serverIndex && s.status === status);
+
+      const next =
+        find("available") !== -1
+          ? find("available")
+          : find("queue") !== -1
+            ? find("queue")
+            : find("cancelled");
+
+      if (next !== -1) setTimeout(() => setServerIndex(next), 500);
       return prev.map((s, i) =>
         i === serverIndex ? { ...s, status: "failed" } : s,
       );

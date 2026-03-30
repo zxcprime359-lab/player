@@ -23,9 +23,10 @@ export function usePlayerServers({
         }
 
         if (idx === i) {
-          if (s.status === "cancelled") return { ...s, status: "checking" };
+          // if (s.status === "cancelled") return { ...s, status: "checking" };
           if (s.status === "failed") return { ...s, status: "checking" };
           if (s.status === "available") return { ...s, status: "connecting" };
+          if (s.status === "queue") return { ...s, status: "connecting" };
         }
 
         return s;
@@ -46,7 +47,7 @@ export function usePlayerServers({
             ? find("queue")
             : find("cancelled");
 
-      if (next !== -1) setTimeout(() => setServerIndex(next), 500);
+      setServerIndex(next);
       return prev.map((s, i) =>
         i === serverIndex ? { ...s, status: "failed" } : s,
       );
@@ -77,7 +78,15 @@ export function usePlayerServers({
       ),
     );
   }
-
+  function handleMarkQueue() {
+    setServers((prev) =>
+      prev.map((s, i) =>
+        i === serverIndex && s.status === "checking"
+          ? { ...s, status: "queue" }
+          : s,
+      ),
+    );
+  }
   function handleQualityChange() {
     setServers((prev) =>
       prev.map((s, i) =>
@@ -97,5 +106,6 @@ export function usePlayerServers({
     handleMarkConnecting,
     handleMarkChecking,
     handleQualityChange,
+    handleMarkQueue,
   };
 }

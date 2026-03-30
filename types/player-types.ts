@@ -4,7 +4,7 @@ export type ServerStatus =
   | "connecting"
   | "available"
   | "failed"
-  | "cancelled";
+  // | "cancelled";
 
 export type ServerTypes = {
   name: string;

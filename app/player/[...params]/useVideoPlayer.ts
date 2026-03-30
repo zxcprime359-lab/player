@@ -334,7 +334,8 @@ export function useVideoPlayer({
     useSettingsStore
       .getState()
       .setValue("Audio track", { display: "Default", id: "0" });
-    setState((p) => ({ ...p, canPlay: false, waiting: true }));
+
+    setState((p) => ({ ...p, canPlay: false, waiting: true, playing: false }));
   }, [serverIndex]);
 
   useEffect(() => {

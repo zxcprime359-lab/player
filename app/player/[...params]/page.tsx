@@ -82,6 +82,7 @@ export default function Player() {
     handleMarkConnecting,
     handleMarkChecking,
     handleQualityChange,
+    handleMarkQueue,
     serverIndex,
     servers,
     setServers,
@@ -117,15 +118,6 @@ export default function Player() {
     imdbId,
     title,
     year,
-    onCancel: () => {
-      setServers((prev) =>
-        prev.map((s, i) =>
-          i === serverIndex && s.status === "checking"
-            ? { ...s, status: "cancelled" }
-            : s,
-        ),
-      );
-    },
   });
 
   // ─── Subtitles ───────────────────────────────────────────────────────────────
@@ -181,21 +173,28 @@ export default function Player() {
   // ─── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (sourceLoading) handleMarkChecking();
-  }, [serverIndex, sourceLoading]);
+  }, [sourceLoading]);
+
+  useEffect(() => {
+    return () => {
+      handleMarkQueue();
+    };
+  }, [serverIndex]);
+  useEffect(() => {
+    if (sourceError || source?.links.length === 0) {
+      handleServerFail();
+    }
+  }, [source?.links, sourceError]);
+
+  useEffect(() => {
+    if (!source?.links) return;
+    if (source?.links.length > 0) handleMarkConnecting();
+  }, [source?.links]);
 
   useEffect(() => {
     if (!source?.links) return;
     handleQualityChange();
   }, [sourceQualityId]);
-
-  useEffect(() => {
-    if (sourceLoading || (!source?.links && !sourceError)) return;
-    if (sourceError || source?.links.length === 0) {
-      handleServerFail();
-    } else {
-      handleMarkConnecting();
-    }
-  }, [source?.links, sourceError, sourceLoading, sourceQualityId]);
 
   useEffect(() => {
     if (canNext && state.ended) {
@@ -296,7 +295,7 @@ export default function Player() {
         <video
           key={`${playerSrc}-${sourceQualityId}`}
           ref={videoRef}
-          onCanPlay={handleCanPlay}
+          onCanPlayThrough={handleCanPlay}
           onError={handleServerFail}
           autoPlay={auto_play && autoplay === "on"}
           muted={auto_play && autoplay === "on"}

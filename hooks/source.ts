@@ -42,7 +42,7 @@ export default function useSource(
     title,
     year,
     quality,
-    onCancel,
+   
   } = params;
 
   return useQuery<SourceTypes>({
@@ -66,16 +66,7 @@ export default function useSource(
     refetchOnReconnect: false,
     refetchIntervalInBackground: false,
     queryFn: async ({ signal }) => {
-      if (onCancel) {
-        signal.addEventListener(
-          "abort",
-          () => {
-            console.log("Request cancelled!");
-            onCancel();
-          },
-          { once: true },
-        );
-      }
+    
       if (server === "thanatos") {
         return fetchThanatosSource({
           media_type,

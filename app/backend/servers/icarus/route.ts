@@ -243,8 +243,11 @@ export async function getWorkingProxy(url: string, proxies: string[]) {
         },
         3000,
       );
+      console.log(`Proxy ${proxy} → status: ${res.status}, ok: ${res.ok}`);
       if (res.ok) return proxy;
-    } catch (e) {}
+    } catch (e: any) {
+      console.log(`Proxy ${proxy} → FAILED: ${e.message}`);
+    }
   }
   return null;
 }

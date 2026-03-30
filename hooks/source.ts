@@ -42,7 +42,6 @@ export default function useSource(
     title,
     year,
     quality,
-   
   } = params;
 
   return useQuery<SourceTypes>({
@@ -60,13 +59,12 @@ export default function useSource(
     ],
     enabled: Boolean(tmdbId && imdbId && server === server), // ← blocks fetch while scrolling
     retry: false,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 1000 * 60 * 60, // 1 hour → no refetch for 1 hour
+    gcTime: 1000 * 60 * 60, // 1 hour → garbage collect after 1 hour
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchIntervalInBackground: false,
-    queryFn: async ({ signal }) => {
-    
+    queryFn: async () => {
       if (server === "thanatos") {
         return fetchThanatosSource({
           media_type,
@@ -76,17 +74,11 @@ export default function useSource(
           imdbId,
           title,
           year,
-          signal,
         });
       }
       const { f_token, f_ts } = generateFrontendToken(String(tmdbId));
 
-      const { ts, token } = await fetchBackendToken(
-        tmdbId,
-        f_token,
-        f_ts,
-        signal,
-      );
+      const { ts, token } = await fetchBackendToken(tmdbId, f_token, f_ts);
       const url = buildSourceURL({
         server,
         tmdbId,
@@ -101,7 +93,7 @@ export default function useSource(
         token,
         f_token,
       });
-      const res = await axios.get(url, { signal });
+      const res = await axios.get(url);
       await sleep(1200);
       return res.data;
     },
@@ -194,7 +186,6 @@ async function fetchThanatosSource({
   episode,
   title,
   year,
-  signal,
 }: {
   media_type: string;
   tmdbId: string;
@@ -203,7 +194,6 @@ async function fetchThanatosSource({
   imdbId: string | null;
   title: string;
   year: string;
-  signal?: AbortSignal;
 }): Promise<SourceTypes> {
   // Step 1: Fetch encrypted source directly (user's IP)
   const qs = new URLSearchParams({
@@ -220,7 +210,6 @@ async function fetchThanatosSource({
   const videasyRes = await axios.get(
     `https://api.videasy.net/myflixerzupcloud/sources-with-title?${qs}`,
     {
-      signal,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
@@ -230,11 +219,10 @@ async function fetchThanatosSource({
   );
 
   // Step 2: Decrypt directly from browser (user's IP)
-  const decryptRes = await axios.post(
-    "https://enc-dec.app/api/dec-videasy",
-    { text: videasyRes.data, id: tmdbId },
-    { signal },
-  );
+  const decryptRes = await axios.post("https://enc-dec.app/api/dec-videasy", {
+    text: videasyRes.data,
+    id: tmdbId,
+  });
 
   const sources = decryptRes.data?.result?.sources;
   if (!Array.isArray(sources) || sources.length === 0) {
@@ -256,7 +244,7 @@ async function fetchThanatosSource({
   ];
 
   // Step 4: Find working proxy client-side
-  const workingProxy = await getWorkingProxyClient(finalM3u8, proxies, signal);
+  const workingProxy = await getWorkingProxyClient(finalM3u8, proxies);
   if (!workingProxy) throw new Error("No working proxy available");
 
   await sleep(1200);

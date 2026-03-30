@@ -3,12 +3,12 @@ export type ServerStatus =
   | "checking"
   | "connecting"
   | "available"
-  | "failed"
-  // | "cancelled";
+  | "failed";
 
 export type ServerTypes = {
   name: string;
   server: string;
   status: ServerStatus;
   desc: string;
+  error?: string;
 };

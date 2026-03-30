@@ -64,7 +64,6 @@ export function LyricsServerPicker({
     connecting: "connecting...",
     available: "available",
     failed: "No video found",
-    cancelled: "cancelled",
   };
 
   const statusClass: Record<ServerStatus, string> = {
@@ -73,7 +72,6 @@ export function LyricsServerPicker({
     connecting: "text-muted-foreground animate-pulse",
     available: "text-emerald-500",
     failed: "text-red-600",
-    cancelled: "text-white/20",
   };
 
   const statusIcon: Record<ServerStatus, React.ElementType> = {
@@ -82,7 +80,6 @@ export function LyricsServerPicker({
     connecting: LoaderCircle,
     available: SquareCheckBig,
     failed: X,
-    cancelled: Ban,
   };
 
   useEffect(() => {

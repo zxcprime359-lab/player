@@ -9,14 +9,54 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY_MOVIEBOX!,
 );
 
-const africanIPs = generateAfricanIPs(17);
+function getRandomAfricanIP() {
+  // Source: IANA-confirmed AFRINIC allocations only
+  // 41/8, 102/8, 105/8, 197/8 + 45.96-111.x (recovered pool)
+  const ranges: [number, number][] = [
+    // 41/8 — Kenya, Nigeria, South Africa, Ghana, Ethiopia
+    [41, 57], // Kenya (Safaricom)
+    [41, 60], // Kenya (Telkom Kenya)
+    [41, 72], // Nigeria (MTN)
+    [41, 73], // Nigeria (Airtel)
+    [41, 116], // South Africa (Vodacom)
+    [41, 138], // South Africa (MTN)
+    [41, 160], // Ghana (MTN Ghana)
+    [41, 175], // Egypt (Telecom Egypt)
+    [41, 188], // Ethiopia (Ethio Telecom)
+    [41, 203], // Ethiopia
+    [41, 215], // Ghana
+    [41, 222], // Tanzania (TTCL)
+    // 102/8 — AFRINIC (allocated Feb 2011, last ever IPv4 block)
+    [102, 0], // Nigeria
+    [102, 22], // South Africa
+    [102, 68], // Nigeria (Airtel)
+    [102, 89], // Nigeria (MTN)
+    [102, 130], // Kenya
+    [102, 164], // South Africa
+    [102, 176], // Egypt
+    [102, 212], // Morocco
+    // 105/8 — AFRINIC
+    [105, 16], // South Africa
+    [105, 48], // Kenya
+    [105, 112], // Nigeria
+    [105, 160], // Egypt
+    [105, 224], // Tanzania
+    // 197/8 — AFRINIC
+    [197, 136], // Morocco
+    [197, 148], // Tunisia
+    [197, 156], // Ghana
+    [197, 210], // Nigeria
+    [197, 232], // Kenya (Safaricom)
+    [197, 248], // South Africa
+    // 45.96-111 — AFRINIC recovered pool
+    [45, 96],
+    [45, 100],
+    [45, 108],
+  ];
 
-function generateAfricanIPs(count = 20) {
-  const prefixes = [41, 102, 105, 154, 196, 197];
+  const base = ranges[Math.floor(Math.random() * ranges.length)];
   const rand = () => Math.floor(Math.random() * 254) + 1;
-  return Array.from({ length: count }, () => ({
-    ip: `${prefixes[Math.floor(Math.random() * prefixes.length)]}.${rand()}.${rand()}.${rand()}`,
-  }));
+  return `${base[0]}.${base[1]}.${rand()}.${rand()}`;
 }
 
 export async function getWorkingProxy(url: string, proxies: string[]) {
@@ -76,8 +116,7 @@ export async function GET(req: NextRequest) {
     }
 
     // -------- MovieBox Logic --------
-    const randomIP =
-      africanIPs[Math.floor(Math.random() * africanIPs.length)].ip;
+    const randomIP = getRandomAfricanIP();
     const host = "h5.aoneroom.com";
     const baseUrl = `https://${host}`;
     const headers: Record<string, string> = {
